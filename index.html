@@ -6,17 +6,17 @@
     <title>Humidity & Temperature Tracker</title>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            loadData(); // Load stored data on page load
+            loadData();
 
             document.getElementById("dryBulb").addEventListener("keypress", function (event) {
                 if (event.key === "Enter") {
-                    document.getElementById("wetBulb").focus(); // Move to wet bulb input
+                    document.getElementById("wetBulb").focus();
                 }
             });
 
             document.getElementById("wetBulb").addEventListener("keypress", function (event) {
                 if (event.key === "Enter") {
-                    calculateHumidity(); // Save data when pressing Enter
+                    calculateHumidity();
                 }
             });
         });
@@ -24,19 +24,18 @@
         function calculateHumidity() {
             let wetBulb = parseFloat(document.getElementById('wetBulb').value);
             let dryBulb = parseFloat(document.getElementById('dryBulb').value);
-            
+
             if (isNaN(wetBulb) || isNaN(dryBulb)) {
                 alert("Please enter valid temperatures.");
                 return;
             }
 
             let temperature = dryBulb;
-            let humidity = (100 - 5 * (dryBulb - wetBulb)).toFixed(2); // Approximate formula
+            let humidity = (100 - 5 * (dryBulb - wetBulb)).toFixed(2);
 
             addRow(dryBulb, wetBulb, temperature, humidity);
-            saveDataToSheet(dryBulb, wetBulb, temperature, humidity); // Send to Google Sheet
+            saveToGoogleSheet(dryBulb, wetBulb, temperature, humidity);
             
-            // Clear input fields and focus on Dry Bulb for next entry
             document.getElementById('dryBulb').value = '';
             document.getElementById('wetBulb').value = '';
             document.getElementById('dryBulb').focus();
@@ -50,20 +49,20 @@
                 <td contenteditable="true">${dryBulb}</td>
                 <td contenteditable="true">${wetBulb}</td>
                 <td>${temperature}</td>
-                <td>${humidity.replace('%', '')}%</td> 
+                <td>${humidity}%</td>
                 <td><button onclick="deleteRow(this)">Delete</button></td>
             `;
 
-            saveLocalData();
+            saveDataLocally();
         }
 
         function deleteRow(button) {
             let row = button.parentNode.parentNode;
             row.parentNode.removeChild(row);
-            saveLocalData();
+            saveDataLocally();
         }
 
-        function saveLocalData() {
+        function saveDataLocally() {
             let table = document.getElementById("dataTable").getElementsByTagName('tbody')[0];
             let data = [];
 
@@ -73,7 +72,7 @@
                     dryBulb: cells[0].innerText,
                     wetBulb: cells[1].innerText,
                     temperature: cells[2].innerText,
-                    humidity: cells[3].innerText.replace('%', '') // Remove extra %
+                    humidity: cells[3].innerText
                 });
             }
 
@@ -91,10 +90,10 @@
             }
         }
 
-        function saveDataToSheet(dryBulb, wetBulb, temperature, humidity) {
+        function saveToGoogleSheet(dryBulb, wetBulb, temperature, humidity) {
             let data = { dryBulb, wetBulb, temperature, humidity };
 
-            fetch("https://script.google.com/macros/s/AKfycbwBcl2goq0Zc7tAQzGfO_-PRiXJISMqdw9ctYaQWTo3MDVBcH5tzcwWRxZGrrXE89ko/exec", {
+            fetch("https://script.google.com/macros/s/AKfycbzynRGBRqdUnfZIZOA-8UCpdYSg6rnPZxsa98FrXtxuFVgSPpArhh_Xp6B7yvD4X_Qe/exec", {
                 method: "POST",
                 body: JSON.stringify(data),
                 headers: {
@@ -104,14 +103,10 @@
             })
             .then(response => response.json())
             .then(result => {
-                console.log("Response from server:", result);
-                if (result.status !== "Success") {
-                    alert("Error saving data: " + result.message);
-                }
+                console.log("Data Saved:", result);
             })
             .catch(error => {
-                console.error("Error:", error);
-                alert("Error saving data. Check console for details.");
+                console.error("Error Saving Data:", error);
             });
         }
     </script>
