@@ -14,6 +14,8 @@
             padding: 10px;
             margin: 10px;
             width: 200px;
+            display: block;
+            margin: auto;
         }
         button {
             padding: 10px;
@@ -21,6 +23,7 @@
             background-color: blue;
             color: white;
             border: none;
+            margin-top: 10px;
         }
         ul {
             list-style-type: none;
@@ -37,18 +40,25 @@
     <h2>Humidity & Temperature Tracker</h2>
 
     <label>Dry Bulb Temperature (°C):</label>
-    <input type="number" id="dryBulb"><br>
+    <input type="number" id="dryBulb" onkeypress="focusNext(event, 'wetBulb')"><br>
 
     <label>Wet Bulb Temperature (°C):</label>
-    <input type="number" id="wetBulb"><br>
+    <input type="number" id="wetBulb" onkeypress="focusNext(event, 'submitBtn')"><br>
 
-    <button onclick="calculateAndSave()">Submit Data</button>
+    <button id="submitBtn" onclick="calculateAndSave()">Submit Data</button>
 
     <h3>Stored Data</h3>
     <ul id="dataContainer">No data available yet.</ul>
 
     <script>
         const scriptURL = "https://script.google.com/macros/s/AKfycbyUwXvpirzAn4gwNr7y8fpAvZgyD7MOvA0WOHbDwVQD3_wZSJCq4P3mv3_aZ1f8LPI5hw/exec";
+
+        function focusNext(event, nextFieldId) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                document.getElementById(nextFieldId).focus();
+            }
+        }
 
         function calculateAndSave() {
             let wetBulb = parseFloat(document.getElementById('wetBulb').value);
@@ -66,13 +76,17 @@
 
             fetch(scriptURL, {
                 method: "POST",
-                body: JSON.stringify(data),
                 headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
             })
-            .then(response => response.text())
-            .then(responseText => {
-                alert("Data Saved Successfully!");
-                fetchData(); // Refresh stored data
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === "success") {
+                    alert("Data Saved Successfully!");
+                    fetchData();
+                } else {
+                    alert("Error saving data!");
+                }
             })
             .catch(error => alert("Error saving data!"));
         }
@@ -95,4 +109,3 @@
 
 </body>
 </html>
-    
