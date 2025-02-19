@@ -5,19 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Humidity & Temperature Tracker</title>
     <script>
-        // Your Google Apps Script Web App URL
-        const scriptURL = "https://script.google.com/macros/s/AKfycbwBcl2goq0Zc7tAQzGfO_-PRiXJISMqdw9ctYaQWTo3MDVBcH5tzcwWRxZGrrXE89ko/exec";
-
         document.addEventListener("DOMContentLoaded", function () {
+            loadData(); // Load stored data on page load
+
             document.getElementById("dryBulb").addEventListener("keypress", function (event) {
                 if (event.key === "Enter") {
-                    document.getElementById("wetBulb").focus();
+                    document.getElementById("wetBulb").focus(); // Move to wet bulb input
                 }
             });
 
             document.getElementById("wetBulb").addEventListener("keypress", function (event) {
                 if (event.key === "Enter") {
-                    calculateHumidity();
+                    calculateHumidity(); // Save data when pressing Enter
                 }
             });
         });
@@ -32,11 +31,12 @@
             }
 
             let temperature = dryBulb;
-            let humidity = (100 - 5 * (dryBulb - wetBulb)).toFixed(2);
+            let humidity = (100 - 5 * (dryBulb - wetBulb)).toFixed(2); // Approximate formula
 
             addRow(dryBulb, wetBulb, temperature, humidity);
-            saveDataToSheet(dryBulb, wetBulb, temperature, humidity);
+            saveDataToSheet(dryBulb, wetBulb, temperature, humidity); // Send to Google Sheet
             
+            // Clear input fields and focus on Dry Bulb for next entry
             document.getElementById('dryBulb').value = '';
             document.getElementById('wetBulb').value = '';
             document.getElementById('dryBulb').focus();
@@ -45,38 +45,73 @@
         function addRow(dryBulb, wetBulb, temperature, humidity) {
             let table = document.getElementById("dataTable").getElementsByTagName('tbody')[0];
             let newRow = table.insertRow(-1);
+
             newRow.innerHTML = `
-                <td>${dryBulb}</td>
-                <td>${wetBulb}</td>
+                <td contenteditable="true">${dryBulb}</td>
+                <td contenteditable="true">${wetBulb}</td>
                 <td>${temperature}</td>
-                <td>${humidity}%</td>
+                <td>${humidity.replace('%', '')}%</td> 
                 <td><button onclick="deleteRow(this)">Delete</button></td>
             `;
+
+            saveLocalData();
         }
 
         function deleteRow(button) {
             let row = button.parentNode.parentNode;
             row.parentNode.removeChild(row);
+            saveLocalData();
+        }
+
+        function saveLocalData() {
+            let table = document.getElementById("dataTable").getElementsByTagName('tbody')[0];
+            let data = [];
+
+            for (let i = 0; i < table.rows.length; i++) {
+                let cells = table.rows[i].cells;
+                data.push({
+                    dryBulb: cells[0].innerText,
+                    wetBulb: cells[1].innerText,
+                    temperature: cells[2].innerText,
+                    humidity: cells[3].innerText.replace('%', '') // Remove extra %
+                });
+            }
+
+            localStorage.setItem("humidityData", JSON.stringify(data));
+        }
+
+        function loadData() {
+            let table = document.getElementById("dataTable").getElementsByTagName('tbody')[0];
+            let storedData = localStorage.getItem("humidityData");
+
+            if (storedData) {
+                JSON.parse(storedData).forEach(row => {
+                    addRow(row.dryBulb, row.wetBulb, row.temperature, row.humidity);
+                });
+            }
         }
 
         function saveDataToSheet(dryBulb, wetBulb, temperature, humidity) {
             let data = { dryBulb, wetBulb, temperature, humidity };
 
-            fetch(scriptURL, {
+            fetch("https://script.google.com/macros/s/AKfycbwBcl2goq0Zc7tAQzGfO_-PRiXJISMqdw9ctYaQWTo3MDVBcH5tzcwWRxZGrrXE89ko/exec", {
                 method: "POST",
                 body: JSON.stringify(data),
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                }
             })
-            .then(response => response.text())
+            .then(response => response.json())
             .then(result => {
-                console.log(result);
-                if (result !== "Success") {
-                    alert("Error saving data!");
+                console.log("Response from server:", result);
+                if (result.status !== "Success") {
+                    alert("Error saving data: " + result.message);
                 }
             })
             .catch(error => {
                 console.error("Error:", error);
-                alert("Error saving data!");
+                alert("Error saving data. Check console for details.");
             });
         }
     </script>
@@ -86,6 +121,7 @@
         th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
         th { background-color: #f4f4f4; }
         button { padding: 5px 10px; cursor: pointer; }
+        td[contenteditable="true"] { background-color: #ffffe0; }
     </style>
 </head>
 <body>
