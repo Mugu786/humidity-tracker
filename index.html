@@ -3,28 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Humidity & Temperature Tracker</title>
+    <title>Humidity Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        input {
+            padding: 10px;
+            margin: 10px;
+            width: 200px;
+        }
+        button {
+            padding: 10px;
+            cursor: pointer;
+            background-color: blue;
+            color: white;
+            border: none;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            padding: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Humidity & Temperature Tracker</h2>
+
+    <label>Dry Bulb Temperature (°C):</label>
+    <input type="number" id="dryBulb"><br>
+
+    <label>Wet Bulb Temperature (°C):</label>
+    <input type="number" id="wetBulb"><br>
+
+    <button onclick="calculateAndSave()">Submit Data</button>
+
+    <h3>Stored Data</h3>
+    <ul id="dataContainer">No data available yet.</ul>
+
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            loadData(); // Load stored data on page load
+        const scriptURL = "https://script.google.com/macros/s/AKfycbyUwXvpirzAn4gwNr7y8fpAvZgyD7MOvA0WOHbDwVQD3_wZSJCq4P3mv3_aZ1f8LPI5hw/exec";
 
-            document.getElementById("dryBulb").addEventListener("keypress", function (event) {
-                if (event.key === "Enter") {
-                    document.getElementById("wetBulb").focus(); // Move to wet bulb input
-                }
-            });
-
-            document.getElementById("wetBulb").addEventListener("keypress", function (event) {
-                if (event.key === "Enter") {
-                    calculateHumidity(); // Save data when pressing Enter
-                }
-            });
-        });
-
-        function calculateHumidity() {
+        function calculateAndSave() {
             let wetBulb = parseFloat(document.getElementById('wetBulb').value);
             let dryBulb = parseFloat(document.getElementById('dryBulb').value);
-            
+
             if (isNaN(wetBulb) || isNaN(dryBulb)) {
                 alert("Please enter valid temperatures.");
                 return;
@@ -33,92 +62,37 @@
             let temperature = dryBulb;
             let humidity = (100 - 5 * (dryBulb - wetBulb)).toFixed(2); // Approximate formula
 
-            addRow(dryBulb, wetBulb, temperature, humidity);
-            saveData();
-            
-            // Clear input fields and focus on Dry Bulb for next entry
-            document.getElementById('dryBulb').value = '';
-            document.getElementById('wetBulb').value = '';
-            document.getElementById('dryBulb').focus();
+            let data = { dryBulb, wetBulb, temperature, humidity };
+
+            fetch(scriptURL, {
+                method: "POST",
+                body: JSON.stringify(data),
+                headers: { "Content-Type": "application/json" },
+            })
+            .then(response => response.text())
+            .then(responseText => {
+                alert("Data Saved Successfully!");
+                fetchData(); // Refresh stored data
+            })
+            .catch(error => alert("Error saving data!"));
         }
 
-        function addRow(dryBulb, wetBulb, temperature, humidity) {
-            let table = document.getElementById("dataTable").getElementsByTagName('tbody')[0];
-            let newRow = table.insertRow(-1);
-
-            newRow.innerHTML = `
-                <td contenteditable="true">${dryBulb}</td>
-                <td contenteditable="true">${wetBulb}</td>
-                <td>${temperature}</td>
-                <td>${humidity}%</td>
-                <td><button onclick="deleteRow(this)">Delete</button></td>
-            `;
-
-            saveData();
-        }
-
-        function deleteRow(button) {
-            let row = button.parentNode.parentNode;
-            row.parentNode.removeChild(row);
-            saveData();
-        }
-
-        function saveData() {
-            let table = document.getElementById("dataTable").getElementsByTagName('tbody')[0];
-            let data = [];
-
-            for (let i = 0; i < table.rows.length; i++) {
-                let cells = table.rows[i].cells;
-                data.push({
-                    dryBulb: cells[0].innerText,
-                    wetBulb: cells[1].innerText,
-                    temperature: cells[2].innerText,
-                    humidity: cells[3].innerText
+        function fetchData() {
+            fetch(scriptURL)
+            .then(response => response.json())
+            .then(data => {
+                let output = "";
+                data.forEach(row => {
+                    output += `<li>${row.dryBulb}°C | ${row.wetBulb}°C | ${row.temperature}°C | ${row.humidity}%</li>`;
                 });
-            }
-
-            localStorage.setItem("humidityData", JSON.stringify(data));
+                document.getElementById("dataContainer").innerHTML = output;
+            })
+            .catch(error => console.error("Error fetching data:", error));
         }
 
-        function loadData() {
-            let table = document.getElementById("dataTable").getElementsByTagName('tbody')[0];
-            let storedData = localStorage.getItem("humidityData");
-
-            if (storedData) {
-                JSON.parse(storedData).forEach(row => {
-                    addRow(row.dryBulb, row.wetBulb, row.temperature, row.humidity);
-                });
-            }
-        }
+        fetchData(); // Load data when page loads
     </script>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-        th { background-color: #f4f4f4; }
-        button { padding: 5px 10px; cursor: pointer; }
-        td[contenteditable="true"] { background-color: #ffffe0; }
-    </style>
-</head>
-<body>
-    <h2>Humidity & Temperature Tracker</h2>
-    <label>Dry Bulb Temperature (°C):</label>
-    <input type="number" id="dryBulb" autofocus> <br><br>
-    <label>Wet Bulb Temperature (°C):</label>
-    <input type="number" id="wetBulb"> <br><br>
-    <button onclick="calculateHumidity()">Calculate & Save</button>
-    
-    <table id="dataTable">
-        <thead>
-            <tr>
-                <th>Dry Bulb (°C)</th>
-                <th>Wet Bulb (°C)</th>
-                <th>Temperature (°C)</th>
-                <th>Humidity (%)</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+
 </body>
 </html>
+    
